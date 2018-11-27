@@ -14,8 +14,6 @@ package scala
 package collection
 package immutable
 
-import java.io.{ObjectInputStream, ObjectOutputStream}
-
 import scala.collection.mutable.Builder
 
 /**
@@ -37,7 +35,9 @@ import scala.collection.mutable.Builder
 
 trait SeqMap[K, +V]
   extends AbstractMap[K, V]
-    with MapOps[K, V, SeqMap, SeqMap[K, V]]
+    with MapOps[K, V, SeqMap, SeqMap[K, V]]{
+  override final def toSeqMap[K2, V2](implicit ev: (K, V) <:< (K2, V2)): SeqMap[K2, V2] = this.asInstanceOf[SeqMap[K2, V2]]
+}
 
 object SeqMap extends MapFactory[SeqMap] {
   def empty[K, V]: SeqMap[K, V] = EmptyLinkedMap.asInstanceOf[SeqMap[K, V]]
@@ -47,6 +47,31 @@ object SeqMap extends MapFactory[SeqMap] {
       case sm: SeqMap[K, V] => sm
       case _ => (newBuilder[K, V] ++= it).result()
     }
+
+  def groupFrom[A, K, C1](it: IterableOnce[A],
+                          f: A => K,
+                          builder: => mutable.Builder[A, C1]): SeqMap[K, C1] = {
+    val iterator = it.iterator
+    if (iterator.isEmpty) {
+      empty
+    } else {
+      val m = mutable.SeqMap.empty[K, Builder[A, C1]]
+      val it = iterator
+      while (it.hasNext) {
+        val elem = it.next()
+        val key = f(elem)
+        val bldr = m.getOrElseUpdate(key, builder)
+        bldr += elem
+      }
+      var result = empty[K, C1]
+      val mapIt = m.iterator
+      while (mapIt.hasNext) {
+        val (k, v) = mapIt.next()
+        result = result.updated(k, v.result())
+      }
+      result
+    }
+  }
 
   def newBuilder[K, V]: Builder[(K, V), SeqMap[K, V]] = VectorMap.newBuilder
 

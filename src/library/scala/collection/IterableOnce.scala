@@ -1220,6 +1220,9 @@ trait IterableOnceOps[+A, +CC[_], +C] extends Any { this: IterableOnce[A] =>
   def toMap[K, V](implicit ev: A <:< (K, V)): immutable.Map[K, V] =
     immutable.Map.from(this.asInstanceOf[IterableOnce[(K, V)]])
 
+  def toSeqMap[K, V](implicit ev: A <:< (K, V)): immutable.SeqMap[K, V] =
+    immutable.SeqMap.from(this.asInstanceOf[IterableOnce[(K, V)]])
+
   def toSet[B >: A]: immutable.Set[B] = immutable.Set.from(this)
 
   /**
