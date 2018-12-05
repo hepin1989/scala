@@ -1019,7 +1019,7 @@ self =>
        *  Type ::= InfixType `=>' Type
        *         | `(' [`=>' Type] `)' `=>' Type
        *         | InfixType [ExistentialClause]
-       *  ExistentialClause ::= forSome `{' ExistentialDcl {semi ExistentialDcl}} `}'
+       *  ExistentialClause ::= forSome `{' ExistentialDcl {semi ExistentialDcl} `}'
        *  ExistentialDcl    ::= type TypeDcl | val ValDcl
        *  }}}
        */
@@ -1998,8 +1998,8 @@ self =>
       }
 
       /** {{{
-       *  Pattern2    ::=  id  @ Pattern3
-       *                |  `_' @ Pattern3
+       *  Pattern2    ::=  id  `@' Pattern3
+       *                |  `_' `@' Pattern3
        *                |   Pattern3
        *  }}}
        */
@@ -2130,7 +2130,7 @@ self =>
     /** The implementation of the context sensitive methods for parsing outside of patterns. */
     final val outPattern = new PatternContextSensitive {
       def argType(): Tree = typ()
-      def functionArgType(): Tree = paramType(useStartAsPosition = true)
+      def functionArgType(): Tree = paramType(repeatedParameterOK = false, useStartAsPosition = true)
     }
     /** The implementation for parsing inside of patterns at points where sequences are allowed. */
     final val seqOK = new SeqContextSensitive(isSequenceOK = true, isXML = false)
@@ -2358,8 +2358,8 @@ self =>
      *  ParamType ::= Type | `=>' Type | Type `*'
      *  }}}
      */
-    def paramType(): Tree = paramType(useStartAsPosition = false)
-    def paramType(useStartAsPosition: Boolean): Tree = {
+    def paramType(): Tree = paramType(repeatedParameterOK = true, useStartAsPosition = false)
+    def paramType(repeatedParameterOK: Boolean, useStartAsPosition: Boolean): Tree = {
       val start = in.offset
       in.token match {
         case ARROW  =>
@@ -2369,7 +2369,8 @@ self =>
           val t = typ()
           if (isRawStar) {
             in.nextToken()
-            if (useStartAsPosition) atPos(start)(repeatedApplication(t))
+            if (!repeatedParameterOK) { syntaxError("repeated parameters are only allowed in method signatures; use Seq instead", skipIt = false) ; t }
+            else if (useStartAsPosition) atPos(start)(repeatedApplication(t))
             else atPos(t.pos.start, t.pos.point)(repeatedApplication(t))
           }
           else t
@@ -2522,13 +2523,13 @@ self =>
         accept(DOT)
         result
       }
-      /* Walks down import `foo.bar.baz.{ ... }` until it ends at a
+      /* Walks down import `foo.bar.baz.{ ... }` until it ends at
        * an underscore, a left brace, or an undotted identifier.
        */
       def loop(expr: Tree): Tree = {
         expr setPos expr.pos.makeTransparent
         val selectors: List[ImportSelector] = in.token match {
-          case USCORE   => List(importSelector()) // import foo.bar._;
+          case USCORE   => List(wildImportSelector()) // import foo.bar._;
           case LBRACE   => importSelectors()      // import foo.bar.{ x, y, z }
           case _        =>
             val nameOffset = in.offset
@@ -2565,10 +2566,7 @@ self =>
      */
     def importSelectors(): List[ImportSelector] = {
       val selectors = inBracesOrNil(commaSeparated(importSelector()))
-      selectors.init foreach {
-        case ImportSelector(nme.WILDCARD, pos, _, _)  => syntaxError(pos, "Wildcard import must be in last position")
-        case _                                        => ()
-      }
+      for (t <- selectors.init if t.isWildcard) syntaxError(t.namePos, "Wildcard import must be in last position")
       selectors
     }
 
@@ -2578,24 +2576,32 @@ self =>
     }
 
     /** {{{
-     *  ImportSelector ::= Id [`=>' Id | `=>' `_']
+     *  ImportSelector ::= Id [`=>` Id | `=>` `_`]
      *  }}}
      */
     def importSelector(): ImportSelector = {
       val start        = in.offset
+      val bbq          = in.token == BACKQUOTED_IDENT
       val name         = wildcardOrIdent()
       var renameOffset = -1
       val rename       = in.token match {
-        case ARROW    =>
+        case ARROW =>
           in.nextToken()
           renameOffset = in.offset
+          if (name == nme.WILDCARD && !bbq) syntaxError(renameOffset, "Wildcard import cannot be renamed")
           wildcardOrIdent()
-        case _ if name == nme.WILDCARD  => null
-        case _ =>
+        case _ if name == nme.WILDCARD && !bbq => null
+        case _     =>
           renameOffset = start
           name
       }
       ImportSelector(name, start, rename, renameOffset)
+    }
+
+    def wildImportSelector(): ImportSelector = {
+      val selector = ImportSelector.wildAt(in.offset)
+      in.nextToken()
+      selector
     }
 
     /** {{{
@@ -2892,7 +2898,7 @@ self =>
     }
 
     /** {{{
-     *  ClassDef ::= Id [TypeParamClause] {Annotation}
+     *  ClassDef ::= Id [TypeParamClause] ConstrAnnotations
      *               [AccessModifier] ClassParamClauses RequiresTypeOpt ClassTemplateOpt
      *  TraitDef ::= Id [TypeParamClause] RequiresTypeOpt TraitTemplateOpt
      *  }}}

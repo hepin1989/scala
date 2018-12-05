@@ -40,9 +40,9 @@ import VersionUtil._
 import scala.tools.nsc.util.ScalaClassLoader.URLClassLoader
 
 // Non-Scala dependencies:
-val junitDep          = "junit"                          % "junit"                            % "4.11"
+val junitDep          = "junit"                          % "junit"                            % "4.12"
 val junitInterfaceDep = "com.novocode"                   % "junit-interface"                  % "0.11"                            % "test"
-val jolDep            = "org.openjdk.jol"                % "jol-core"                         % "0.5"
+val jolDep            = "org.openjdk.jol"                % "jol-core"                         % "0.9"
 val asmDep            = "org.scala-lang.modules"         % "scala-asm"                        % versionProps("scala-asm.version")
 val jlineDep          = "jline"                          % "jline"                            % versionProps("jline.version")
 val testInterfaceDep  = "org.scala-sbt"                  % "test-interface"                   % "1.0"
@@ -397,12 +397,12 @@ lazy val compilerOptionsExporter = Project("compilerOptionsExporter", file(".") 
   .settings(disablePublishing)
   .settings(
     libraryDependencies ++= Seq(
-      "com.fasterxml.jackson.core" % "jackson-core" % "2.9.5",
-      "com.fasterxml.jackson.core" % "jackson-annotations" % "2.9.5",
-      "com.fasterxml.jackson.core" % "jackson-databind" % "2.9.5",
-      "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % "2.9.5"
+      "com.fasterxml.jackson.core" % "jackson-core" % "2.9.7",
+      "com.fasterxml.jackson.core" % "jackson-annotations" % "2.9.7",
+      "com.fasterxml.jackson.core" % "jackson-databind" % "2.9.7",
+      "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % "2.9.7"
       // TODO: implement without Scala dependency. Not available when STARR has a new binary verison.
-      // "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.9.5"
+      // "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.9.7"
     )
   )
 
@@ -425,7 +425,7 @@ lazy val compiler = configureAsSubproject(project)
     // (with strings) to deal with mutual recursion
     products in Compile in packageBin :=
       (products in Compile in packageBin).value ++
-        Seq((dependencyClasspath in Compile).value.find(_.get(moduleID.key) == Some(asmDep)).get.data) ++
+        Seq((dependencyClasspath in Compile).value.find(_.get(moduleID.key).map(id => (id.organization, id.name, id.revision)).contains((asmDep.organization, asmDep.name, asmDep.revision))).get.data) ++
         (products in Compile in packageBin in LocalProject("interactive")).value ++
         (products in Compile in packageBin in LocalProject("scaladoc")).value ++
         (products in Compile in packageBin in LocalProject("repl")).value ++
