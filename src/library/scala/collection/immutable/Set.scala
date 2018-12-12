@@ -75,11 +75,11 @@ trait SetOps[A, +CC[X], +C <: SetOps[A, CC, C]]
     *  @param that the collection containing the elements to remove.
     *  @return a new $coll with the given elements removed, omitting duplicates.
     */
-  def removeAll(that: IterableOnce[A]): C = that.iterator.foldLeft[C](coll)(_ - _)
+  def removedAll(that: IterableOnce[A]): C = that.iterator.foldLeft[C](coll)(_ - _)
 
   /** Alias for removeAll */
   @deprecatedOverriding("This method should be final, but is not due to scala/bug#10853", "2.13.0")
-  override /*final*/ def -- (that: IterableOnce[A]): C = removeAll(that)
+  override /*final*/ def -- (that: IterableOnce[A]): C = removedAll(that)
 }
 
 /**
@@ -102,10 +102,7 @@ object Set extends IterableFactory[Set] {
       case _                       => (newBuilder[E] ++= it).result()
     }
 
-  def newBuilder[A]: Builder[A, Set[A]] =
-    new ImmutableBuilder[A, Set[A]](empty) {
-      def addOne(elem: A): this.type = { elems = elems + elem; this }
-    }
+  def newBuilder[A]: Builder[A, Set[A]] = new SetBuilderImpl[A]
 
   /** An optimized representation for immutable empty sets */
   private object EmptySet extends AbstractSet[Any] {
