@@ -10,10 +10,12 @@
  * additional information regarding copyright ownership.
  */
 
-package scala.reflect.macros
-package runtime
+package scala
 
-import scala.reflect.internal.util.Position
-import scala.util.control.ControlThrowable
+/** A type for which there is always an implicit value. */
+class DummyImplicit
 
-class AbortMacroException(val pos: Position, val msg: String) extends ControlThrowable(msg)
+object DummyImplicit {
+  /** An implicit value yielding a `DummyImplicit`. */
+  implicit def dummyImplicit: DummyImplicit = new DummyImplicit
+}
