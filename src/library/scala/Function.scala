@@ -28,6 +28,7 @@ object Function {
   /** The constant function */
   def const[T, U](x: T)(y: U): T = x
 
+  private final val constIdentityFunction: Any => Any = x => x
   /**
    * Returns a function that always returns its input argument as result.
    * Which could be used as a function argument passed to `map` or `flatMap` methods.
@@ -35,7 +36,7 @@ object Function {
    * @tparam T the type of the input and output value of the function
    * @return a function that always returns its input argument as result.
    */
-  def identity[T]: T => T = t => t
+  def identity[T]: T => T = constIdentityFunction.asInstanceOf[T => T]
 
   /** Turns a function `A => Option[B]` into a `PartialFunction[A, B]`.
    *
